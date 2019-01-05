@@ -4,13 +4,14 @@ import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 
 public class HBaseScrabble {
     private Configuration config;
     private HBaseAdmin hBaseAdmin;
+    private byte[] table = Bytes.toBytes("ScrabbleGames");
+    private HBaseSetUp setUp = new HBaseSetUp();
 
     /**
      * The Constructor. Establishes the connection with HBase.
@@ -26,13 +27,76 @@ public class HBaseScrabble {
     }
 
     public void createTable() throws IOException {
-        //TO IMPLEMENT
-        System.exit(-1);
+
+        HTableDescriptor hTable = new HTableDescriptor(TableName.valueOf(table));
+        for (byte[] cf: setUp.listCF) {
+            hTable.addFamily(new HColumnDescriptor(cf).setMaxVersions(10));
+        }
+        this.hBaseAdmin.createTable(hTable);
     }
 
     public void loadTable(String folder)throws IOException{
-        //TO IMPLEMENT
-        System.exit(-1);
+        HTable hTable = new HTable(config,table);
+        String csvName = "scrabble_games.csv";
+        String line = "";
+        String cvsSplitBy = ",";
+
+        try (BufferedReader br = new BufferedReader(new FileReader(folder+"/"+csvName))) {
+            int lines=0;
+
+
+            while ((line = br.readLine()) != null) {
+               //while (br.readLine()!= null) {
+                String[] columns = line.split(cvsSplitBy);
+                String[] values ={columns[0],columns[1],columns[3],columns[9]};
+                int[] keyTable = {0,1,2,3}; //{0,10,20,26}; //10,10,6,6
+
+                Put p = new Put(getKey(values,keyTable));
+
+ //               System.out.println("KEY - "+new String(getKey(values,keyTable)));
+                int i=0;
+                for (byte[] columnFamily: setUp.listCF) {
+                    Map<String, Integer> currentMap = new HashMap<>();
+                    switch (i){
+                    //Tournament Game Winnes Loser
+                        case 0:
+                            currentMap = setUp.tournament;
+                            break;
+                        case 1:
+                            currentMap = setUp.game;
+                            break;
+                        case 2:
+                            currentMap = setUp.winner;
+                            break;
+                        case 3:
+                            currentMap = setUp.loser;
+                            break;
+                    }
+
+                    for (Map.Entry<String, Integer> entry : currentMap.entrySet())
+                    {
+//                        System.out.println("KEY " + entry.getKey());
+//                        System.out.println("VAL " + columns[entry.getValue()]);
+                        p.add(columnFamily, Bytes.toBytes(entry.getKey()), Bytes.toBytes(columns[entry.getValue()]));
+//                        System.out.println(entry.getKey() + "/" + entry.getValue());
+                    }
+                    i++;
+                }
+
+                hTable.put(p);
+
+               lines++;
+                //hBaseAdmin.split(table);
+            }
+            System.out.println("Lines "+lines);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+       /* catch(InterruptedException ex){
+            ex.printStackTrace();
+        }*/
+
     }
 
     /**
@@ -87,6 +151,7 @@ public class HBaseScrabble {
             hBaseScrabble.createTable();
         }
         else if(args[1].toUpperCase().equals("LOADTABLE")){
+
             if(args.length!=3){
                 System.out.println("Error: 1) ZK_HOST:ZK_PORT, 2)action [createTables, loadTables], 3)csvsFolder");
                 System.exit(-1);
