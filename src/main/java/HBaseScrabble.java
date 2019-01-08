@@ -2,7 +2,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
-
+import org.apache.commons.lang.StringUtils;
 import java.io.*;
 import java.util.*;
 
@@ -27,12 +27,18 @@ public class HBaseScrabble {
     }
 
     public void createTable() throws IOException {
+        try{
+            HTableDescriptor hTable = new HTableDescriptor(TableName.valueOf(table));
+            for (byte[] cf: setUp.listCF) {
+                hTable.addFamily(new HColumnDescriptor(cf).setMaxVersions(10));
+            }
+            this.hBaseAdmin.createTable(hTable);
 
-        HTableDescriptor hTable = new HTableDescriptor(TableName.valueOf(table));
-        for (byte[] cf: setUp.listCF) {
-            hTable.addFamily(new HColumnDescriptor(cf).setMaxVersions(10));
+        } catch(TableExistsException te){
+            System.err.println("Table ScrabbleGames already exists" );
         }
-        this.hBaseAdmin.createTable(hTable);
+
+
     }
 
     public void loadTable(String folder)throws IOException{
@@ -44,16 +50,25 @@ public class HBaseScrabble {
         try (BufferedReader br = new BufferedReader(new FileReader(folder+"/"+csvName))) {
             int lines=0;
 
-
-            while ((line = br.readLine()) != null) {
+            while ((line = br.readLine()) != null && lines<=2) {
                //while (br.readLine()!= null) {
                 String[] columns = line.split(cvsSplitBy);
-                String[] values ={columns[0],columns[1],columns[3],columns[9]};
-                int[] keyTable = {0,1,2,3}; //{0,10,20,26}; //10,10,6,6
+                // String[] values  = TournamentId , GameId , WinnerId , LoserId
+                String tournamentId = StringUtils.leftPad(columns[1], 4, "0");  // 0000 -4 character - 8 bytes needed from bytes 0 to 7
+                String gameId = StringUtils.leftPad(columns[0], 7, "0"); // 0000000 -7 character  - 14 bytes needed
+                String winnerId = StringUtils.leftPad(columns[3], 4, "0"); // 0000 -4 character   - 8 bytes needed
+                String loserId = StringUtils.leftPad(columns[9], 4, "0");// 0000 -4 character  - 8 bytes needed
+                //String[] values ={columns[1],columns[0],columns[3],columns[9]};
+                String[] values ={tournamentId,gameId,winnerId,loserId};
+                int[] keyTable = {0,1,2,3};
 
+                System.out.println(tournamentId+" - "+gameId+" - "+winnerId+" - "+loserId);
+                System.out.println(line);
+                System.out.println("KEY - "+new String(getKey(values,keyTable)));
+
+                //1 character in java needs 2 bytes therefore
                 Put p = new Put(getKey(values,keyTable));
 
- //               System.out.println("KEY - "+new String(getKey(values,keyTable)));
                 int i=0;
                 for (byte[] columnFamily: setUp.listCF) {
                     Map<String, Integer> currentMap = new HashMap<>();
@@ -75,8 +90,8 @@ public class HBaseScrabble {
 
                     for (Map.Entry<String, Integer> entry : currentMap.entrySet())
                     {
-//                        System.out.println("KEY " + entry.getKey());
-//                        System.out.println("VAL " + columns[entry.getValue()]);
+                        System.out.println("KEY " + entry.getKey());
+                        System.out.println("VAL " + columns[entry.getValue()]);
                         p.add(columnFamily, Bytes.toBytes(entry.getKey()), Bytes.toBytes(columns[entry.getValue()]));
 //                        System.out.println(entry.getKey() + "/" + entry.getValue());
                     }
@@ -114,6 +129,17 @@ public class HBaseScrabble {
 
         return key;
     }
+
+    byte[] getTournamentKey(String tournamentId) {
+        byte[] key = new byte[38];
+        System.arraycopy(Bytes.toBytes(tournamentId),0,key,
+                7,tournamentId.length());
+        for (int i = 0; i < 38; i++){
+            key[i] = (byte) - 255;
+        }
+        return key;
+    }
+
 
 
 
