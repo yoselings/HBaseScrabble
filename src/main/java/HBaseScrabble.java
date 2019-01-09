@@ -59,12 +59,12 @@ public class HBaseScrabble {
                 lines++;
 
                 String[] columns = line.split(cvsSplitBy);
-                // String[] values  = TournamentId , GameId , WinnerId , LoserId
+
                 String tournamentId = StringUtils.leftPad(columns[1], 4, "0");  // 0000 -4 character - 8 bytes needed from bytes 0 to 7
                 String gameId = StringUtils.leftPad(columns[0], 7, "0"); // 0000000 -7 character  - 14 bytes needed
                 String winnerId = StringUtils.leftPad(columns[3], 4, "0"); // 0000 -4 character   - 8 bytes needed
                 String loserId = StringUtils.leftPad(columns[9], 4, "0");// 0000 -4 character  - 8 bytes needed
-                //String[] values ={columns[1],columns[0],columns[3],columns[9]};
+                // String[] values  = TournamentId , GameId , WinnerId , LoserId
                 String[] values ={tournamentId,gameId,winnerId,loserId};
                 int[] keyTable = {0,1,2,3};
 
@@ -72,7 +72,7 @@ public class HBaseScrabble {
                 System.out.println("Line "+line);
                 System.out.println("KEY - "+new String(getKey(values,keyTable)));
 
-                //1 character in java needs 2 bytes therefore
+                //1 character in java needs 2 bytes
                 Put p = new Put(getKey(values,keyTable));
 
                 int i=0;
@@ -107,16 +107,14 @@ public class HBaseScrabble {
 
                 System.out.println("\n***************** ");
 
-                //hBaseAdmin.split(table);
+
             }
             System.out.println("Lines "+lines);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-       /* catch(InterruptedException ex){
-            ex.printStackTrace();
-        }*/
+
 
     }
 
@@ -178,20 +176,28 @@ public class HBaseScrabble {
         String tmpTourneyId = StringUtils.leftPad(tourneyid, 4, "0");
         String stopKey = StringUtils.leftPad(String.valueOf(Integer.parseInt(tourneyid) + 1), 4, "0");
         System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
-        Scan scan = new
-                Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
+        Scan scan = new Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
 
-
-        Filter filterByWinnerName = new SingleColumnValueFilter(Bytes.toBytes("Winner"),Bytes.toBytes("winnername"),
+       Filter filterByWinnerName = new SingleColumnValueFilter(Bytes.toBytes("Winner"),Bytes.toBytes("winnername"),
                 CompareFilter.CompareOp.EQUAL,Bytes.toBytes(winnername));
-
-         scan.setFilter(filterByWinnerName);
+       scan.setFilter(filterByWinnerName);
 
         List<String> query1 = new ArrayList<String>();
 
+        ResultScanner rs = hTable.getScanner(scan);
+        Result res = rs.next();
+        int count=0;
+        while (res!=null && !res.isEmpty()){
+            count++;
+            System.out.println(count+" : "+ Bytes.toString(res.getRow()));
+            byte [] value = res.getValue(Bytes.toBytes("Loser"), Bytes.toBytes("loserid"));
+            String aux = new String(value);
+            System.out.println("Loser Id : "+aux);
+            query1.add(aux);
+            res = rs.next();
+        }
 
-        return null;
-
+        return query1;
     }
 
     public List<String> query2(String firsttourneyid, String lasttourneyid) throws IOException {
