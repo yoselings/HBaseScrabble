@@ -54,7 +54,7 @@ public class HBaseScrabble {
         try (BufferedReader br = new BufferedReader(new FileReader(folder+"/"+csvName))) {
             int lines=1;
             br.readLine();
-            while ((line = br.readLine()) != null && lines<=10000) {
+            while ((line = br.readLine()) != null) {
 
                 lines++;
 
