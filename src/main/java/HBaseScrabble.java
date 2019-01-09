@@ -1,6 +1,10 @@
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.InclusiveStopFilter;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.commons.lang.StringUtils;
 import java.io.*;
@@ -48,10 +52,12 @@ public class HBaseScrabble {
         String cvsSplitBy = ",";
 
         try (BufferedReader br = new BufferedReader(new FileReader(folder+"/"+csvName))) {
-            int lines=0;
+            int lines=1;
+            br.readLine();
+            while ((line = br.readLine()) != null && lines<=10000) {
 
-            while ((line = br.readLine()) != null && lines<=2) {
-               //while (br.readLine()!= null) {
+                lines++;
+
                 String[] columns = line.split(cvsSplitBy);
                 // String[] values  = TournamentId , GameId , WinnerId , LoserId
                 String tournamentId = StringUtils.leftPad(columns[1], 4, "0");  // 0000 -4 character - 8 bytes needed from bytes 0 to 7
@@ -63,7 +69,7 @@ public class HBaseScrabble {
                 int[] keyTable = {0,1,2,3};
 
                 System.out.println(tournamentId+" - "+gameId+" - "+winnerId+" - "+loserId);
-                System.out.println(line);
+                System.out.println("Line "+line);
                 System.out.println("KEY - "+new String(getKey(values,keyTable)));
 
                 //1 character in java needs 2 bytes therefore
@@ -90,8 +96,7 @@ public class HBaseScrabble {
 
                     for (Map.Entry<String, Integer> entry : currentMap.entrySet())
                     {
-                        System.out.println("KEY " + entry.getKey());
-                        System.out.println("VAL " + columns[entry.getValue()]);
+
                         p.add(columnFamily, Bytes.toBytes(entry.getKey()), Bytes.toBytes(columns[entry.getValue()]));
 //                        System.out.println(entry.getKey() + "/" + entry.getValue());
                     }
@@ -100,7 +105,8 @@ public class HBaseScrabble {
 
                 hTable.put(p);
 
-               lines++;
+                System.out.println("\n***************** ");
+
                 //hBaseAdmin.split(table);
             }
             System.out.println("Lines "+lines);
@@ -126,26 +132,64 @@ public class HBaseScrabble {
             keyString += values[keyId];
         }
         byte[] key = Bytes.toBytes(keyString);
-
         return key;
     }
 
-    byte[] getTournamentKey(String tournamentId) {
+    byte[] getTournamentStartKey(String tournamentId) {
         byte[] key = new byte[38];
         System.arraycopy(Bytes.toBytes(tournamentId),0,key,
-                7,tournamentId.length());
-        for (int i = 0; i < 38; i++){
+                0,tournamentId.length());
+        for (int i = 7; i < 38; i++){
             key[i] = (byte) - 255;
+            // System.out.println("i :"+key[i]);
+        }
+        return key;
+    }
+
+    byte[] getTournamentEndKey(String tournamentId) {
+        byte[] key = new byte[38];
+        System.arraycopy(Bytes.toBytes(tournamentId),0,key,
+                0,tournamentId.length());
+        for (int i = 7; i < 38; i++){
+            key[i] = (byte)255;
         }
         return key;
     }
 
 
 
+    public void testLoad() throws IOException {
+        HTable hTable = new HTable(config,table);
+        Scan scan = new
+                Scan(getTournamentStartKey("0001"),getTournamentStartKey("0002"));
 
+        System.out.println("StartKey "+new String(getTournamentStartKey("0001")));
+        ResultScanner rs = hTable.getScanner(scan);
+        Result res = rs.next();
+        int count=0;
+        while (res!=null && !res.isEmpty()){
+            count++;
+            System.out.println(count+" : "+ Bytes.toString(res.getRow()));
+            res = rs.next();
+        }
+    }
     public List<String> query1(String tourneyid, String winnername) throws IOException {
-        //TO IMPLEMENT
-        System.exit(-1);
+        HTable hTable = new HTable(config,table);
+        String tmpTourneyId = StringUtils.leftPad(tourneyid, 4, "0");
+        String stopKey = StringUtils.leftPad(String.valueOf(Integer.parseInt(tourneyid) + 1), 4, "0");
+        System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
+        Scan scan = new
+                Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
+
+
+        Filter filterByWinnerName = new SingleColumnValueFilter(Bytes.toBytes("Winner"),Bytes.toBytes("winnername"),
+                CompareFilter.CompareOp.EQUAL,Bytes.toBytes(winnername));
+
+         scan.setFilter(filterByWinnerName);
+
+        List<String> query1 = new ArrayList<String>();
+
+
         return null;
 
     }
@@ -218,6 +262,10 @@ public class HBaseScrabble {
             List<String> games = hBaseScrabble.query3(args[2]);
             System.out.println("There are "+games.size()+" that ends in tie in tourneyid "+args[2]+" .");
             System.out.println("The list of games is: "+Arrays.toString(games.toArray(new String[games.size()])));
+        }
+
+        else if(args[1].toUpperCase().equals("TEST")){
+            hBaseScrabble.testLoad();
         }
         else{
             System.out.println("Error: \n1)ZK_HOST:ZK_PORT, \n2)action [createTable, loadTable, query1, query2, query3], \n3)Extra parameters for loadTables and queries:\n" +
