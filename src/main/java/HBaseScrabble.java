@@ -9,6 +9,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.commons.lang.StringUtils;
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 public class HBaseScrabble {
@@ -202,26 +203,54 @@ public class HBaseScrabble {
 
     public List<String> query2(String firsttourneyid, String lasttourneyid) throws IOException {
         HTable hTable = new HTable(config,table);
-        String tmpTourneyId = StringUtils.leftPad(firsttourneyid, 4, "0");
-        String stopKey = StringUtils.leftPad(String.valueOf(Integer.parseInt(lasttourneyid) + 1), 4, "0");
-        System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
-        Scan scan = new Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
 
-        List<String> query2 = new ArrayList<String>();
+        Map<String, Integer> playerCounts = new HashMap();
 
-        ResultScanner rs = hTable.getScanner(scan);
-        Result res = rs.next();
-        int count=0;
-        while (res!=null && !res.isEmpty()){
-            count++;
-            System.out.println(count+" : "+ Bytes.toString(res.getRow()));
-            String winnerid = new String(res.getValue(Bytes.toBytes("Winner"), Bytes.toBytes("winnerid")));
-            String looserid = new String(res.getValue(Bytes.toBytes("Loser"), Bytes.toBytes("loserid")));
-            System.out.println("Winner Id : "+winnerid+"Loser Id : "+looserid);
-            query2.add(winnerid+", "+looserid);
-            res = rs.next();
+        // we have to scan each tourney
+        for (int i = Integer.parseInt(firsttourneyid); i < Integer.parseInt(lasttourneyid); i++) {
+            String tmpTourneyId = StringUtils.leftPad(String.valueOf(i), 4, "0");
+            String stopKey = StringUtils.leftPad(String.valueOf(i+1), 4, "0");
+//            System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
+            Scan scan = new Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
+
+            // let's get a unique set of player ids in this tournament
+            Set<String> playersInTournament = new HashSet();
+            ResultScanner rs = hTable.getScanner(scan);
+            Result res = rs.next();
+            int nRows = 0;
+            while (res!=null && !res.isEmpty()){
+                nRows++;
+//                System.out.println(nRows+" : "+ Bytes.toString(res.getRow()));
+                String winnerid = new String(res.getValue(Bytes.toBytes("Winner"), Bytes.toBytes("winnerid")));
+                String loserid = new String(res.getValue(Bytes.toBytes("Loser"), Bytes.toBytes("loserid")));
+                playersInTournament.add(winnerid);
+                playersInTournament.add(loserid);
+                res = rs.next();
+            }
+            //for each player id increase the count
+            for (String p: playersInTournament) {
+                if (playerCounts.containsKey(p)) {
+                    playerCounts.put(p, playerCounts.get(p)+1);
+                } else {
+                    playerCounts.put(p, 1);
+                }
+            }
         }
-        return query2;
+
+        // now just leave those that appear 2 times or more
+        Map<String, Integer> playerCountsFiltered = playerCounts
+                .entrySet()
+                .stream()
+                .filter(x -> {
+                    if (x.getValue() >= 2) {
+                        return true;
+                    }
+                    return false;
+                })
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+//        System.out.println(playerCountsFiltered);
+        List<String> playerCountsFilteredIds = new ArrayList(playerCountsFiltered.keySet());
+        return playerCountsFilteredIds;
     }
 
     public List<String> query3(String tourneyid) throws IOException {
