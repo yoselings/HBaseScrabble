@@ -201,8 +201,27 @@ public class HBaseScrabble {
     }
 
     public List<String> query2(String firsttourneyid, String lasttourneyid) throws IOException {
-        System.exit(-1);
-        return null;
+        HTable hTable = new HTable(config,table);
+        String tmpTourneyId = StringUtils.leftPad(firsttourneyid, 4, "0");
+        String stopKey = StringUtils.leftPad(String.valueOf(Integer.parseInt(lasttourneyid) + 1), 4, "0");
+        System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
+        Scan scan = new Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
+
+        List<String> query2 = new ArrayList<String>();
+
+        ResultScanner rs = hTable.getScanner(scan);
+        Result res = rs.next();
+        int count=0;
+        while (res!=null && !res.isEmpty()){
+            count++;
+            System.out.println(count+" : "+ Bytes.toString(res.getRow()));
+            String winnerid = new String(res.getValue(Bytes.toBytes("Winner"), Bytes.toBytes("winnerid")));
+            String looserid = new String(res.getValue(Bytes.toBytes("Loser"), Bytes.toBytes("loserid")));
+            System.out.println("Winner Id : "+winnerid+"Loser Id : "+looserid);
+            query2.add(winnerid+", "+looserid);
+            res = rs.next();
+        }
+        return query2;
     }
 
     public List<String> query3(String tourneyid) throws IOException {
@@ -227,8 +246,8 @@ public class HBaseScrabble {
             String gameid = new String(res.getValue(Bytes.toBytes("Game"), Bytes.toBytes("gameid")));
             String winnerid = new String(res.getValue(Bytes.toBytes("Winner"), Bytes.toBytes("winnerid")));
             String looserid = new String(res.getValue(Bytes.toBytes("Loser"), Bytes.toBytes("loserid")));
-            System.out.println("Game Id : "+gameid+"Winner Id : "+winnerid+"Loser Id : "+looserid);
-            query3.add(gameid+", "+winnerid+", "+looserid);
+            System.out.println("Game Id: "+gameid+". Winner Id: "+winnerid+". Loser Id: "+looserid);
+            query3.add(gameid);
             res = rs.next();
         }
         return query3;
