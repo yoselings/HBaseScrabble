@@ -1,7 +1,7 @@
 # Running hbase with docker
 
     git clone https://github.com/big-data-europe/docker-hbase
-    docker-compose -f docker-compose-distributed-local.yml up -d
+    docker-compose -f docker-compose-distributed-local.yml up
 
 add hosts mapping:
 
@@ -21,7 +21,10 @@ Zookeeper at 2181
 # Running app
 
     .\bin\HBaseScrabble localhost:2181 createTable
-    .\bin\HBaseScrabble localhost:2181 loadTable
+    .\bin\HBaseScrabble localhost:2181 loadTable C:\Users\Filip\Desktop\HBaseProjectScrabble\HBaseProject\CSVS
+    .\bin\HBaseScrabble localhost:2181 query1 3 “Paul Avrin”
+    .\bin\HBaseScrabble localhost:2181 query2 100 150
+    .\bin\HBaseScrabble localhost:2181 query3 235
 
 # hbase shell
 
