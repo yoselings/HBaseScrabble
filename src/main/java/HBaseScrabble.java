@@ -204,52 +204,59 @@ public class HBaseScrabble {
     public List<String> query2(String firsttourneyid, String lasttourneyid) throws IOException {
         HTable hTable = new HTable(config,table);
 
-        Map<String, Integer> playerCounts = new HashMap();
+        Set<String> resultSet = new HashSet();
 
         // we have to scan each tourney
         for (int i = Integer.parseInt(firsttourneyid); i < Integer.parseInt(lasttourneyid); i++) {
             String tmpTourneyId = StringUtils.leftPad(String.valueOf(i), 4, "0");
-            String stopKey = StringUtils.leftPad(String.valueOf(i+1), 4, "0");
+            String stopKey = StringUtils.leftPad(String.valueOf(i + 1), 4, "0");
 //            System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
-            Scan scan = new Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
+            Scan scan = new Scan(getTournamentStartKey(tmpTourneyId), getTournamentStartKey(stopKey));
 
-            // let's get a unique set of player ids in this tournament
-            Set<String> playersInTournament = new HashSet();
+            // let's get count of the games played by each player in tournament
             ResultScanner rs = hTable.getScanner(scan);
             Result res = rs.next();
             int nRows = 0;
-            while (res!=null && !res.isEmpty()){
+            Map<String, Integer> playerTournamentCounts = new HashMap();
+            while (res != null && !res.isEmpty()) {
                 nRows++;
 //                System.out.println(nRows+" : "+ Bytes.toString(res.getRow()));
                 String winnerid = new String(res.getValue(Bytes.toBytes("Winner"), Bytes.toBytes("winnerid")));
                 String loserid = new String(res.getValue(Bytes.toBytes("Loser"), Bytes.toBytes("loserid")));
-                playersInTournament.add(winnerid);
-                playersInTournament.add(loserid);
+                if (playerTournamentCounts.containsKey(winnerid)) {
+                    playerTournamentCounts.put(winnerid, playerTournamentCounts.get(winnerid) + 1);
+                } else {
+                    playerTournamentCounts.put(winnerid, 1);
+                }
+                if (playerTournamentCounts.containsKey(loserid)) {
+                    playerTournamentCounts.put(loserid, playerTournamentCounts.get(loserid) + 1);
+                } else {
+                    playerTournamentCounts.put(loserid, 1);
+                }
                 res = rs.next();
             }
-            //for each player id increase the count
-            for (String p: playersInTournament) {
-                if (playerCounts.containsKey(p)) {
-                    playerCounts.put(p, playerCounts.get(p)+1);
-                } else {
-                    playerCounts.put(p, 1);
-                }
+
+            // filter those that played at least two games
+            Map<String, Integer> playerTournamentCountsFiltered = playerTournamentCounts
+                    .entrySet()
+                    .stream()
+                    .filter(x -> {
+                        if (x.getValue() >= 2) {
+                            return true;
+                        }
+                        return false;
+                    })
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            if (resultSet.isEmpty()) {
+                // if it is the first tournament we check we just add all ids
+                resultSet.addAll(playerTournamentCountsFiltered.keySet());
+            } else {
+                // if it is 2nd and next we retain only those that are common in both sets
+                resultSet.retainAll(playerTournamentCountsFiltered.keySet());
             }
         }
 
-        // now just leave those that appear 2 times or more
-        Map<String, Integer> playerCountsFiltered = playerCounts
-                .entrySet()
-                .stream()
-                .filter(x -> {
-                    if (x.getValue() >= 2) {
-                        return true;
-                    }
-                    return false;
-                })
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-//        System.out.println(playerCountsFiltered);
-        List<String> playerCountsFilteredIds = new ArrayList(playerCountsFiltered.keySet());
+        List<String> playerCountsFilteredIds = new ArrayList(resultSet);
         return playerCountsFilteredIds;
     }
 
