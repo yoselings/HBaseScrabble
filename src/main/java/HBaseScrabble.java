@@ -176,7 +176,7 @@ public class HBaseScrabble {
         HTable hTable = new HTable(config,table);
         String tmpTourneyId = StringUtils.leftPad(tourneyid, 4, "0");
         String stopKey = StringUtils.leftPad(String.valueOf(Integer.parseInt(tourneyid) + 1), 4, "0");
-        System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
+//        System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
         Scan scan = new Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
 
         Filter filterByWinnerName = new SingleColumnValueFilter(Bytes.toBytes("Winner"),Bytes.toBytes("winnername"),
@@ -190,7 +190,7 @@ public class HBaseScrabble {
         int count=0;
         while (res!=null && !res.isEmpty()){
             count++;
-            System.out.println(count+" : "+ Bytes.toString(res.getRow()));
+//            System.out.println(count+" : "+ Bytes.toString(res.getRow()));
             byte [] value = res.getValue(Bytes.toBytes("Loser"), Bytes.toBytes("loserid"));
             String aux = new String(value);
             System.out.println("Loser Id : "+aux);
@@ -247,7 +247,7 @@ public class HBaseScrabble {
                         return false;
                     })
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-            if (resultSet.isEmpty()) {
+            if (i == Integer.parseInt(firsttourneyid)) {
                 // if it is the first tournament we check we just add all ids
                 resultSet.addAll(playerTournamentCountsFiltered.keySet());
             } else {
@@ -264,7 +264,7 @@ public class HBaseScrabble {
         HTable hTable = new HTable(config,table);
         String tmpTourneyId = StringUtils.leftPad(tourneyid, 4, "0");
         String stopKey = StringUtils.leftPad(String.valueOf(Integer.parseInt(tourneyid) + 1), 4, "0");
-        System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
+//        System.out.println("StartKey : "+tmpTourneyId + " StopKey : " +stopKey) ;
         Scan scan = new Scan(getTournamentStartKey(tmpTourneyId),getTournamentStartKey(stopKey));
 
         Filter filterTie = new SingleColumnValueFilter(Bytes.toBytes("Game"),Bytes.toBytes("tie"),
@@ -278,7 +278,7 @@ public class HBaseScrabble {
         int count=0;
         while (res!=null && !res.isEmpty()){
             count++;
-            System.out.println(count+" : "+ Bytes.toString(res.getRow()));
+//            System.out.println(count+" : "+ Bytes.toString(res.getRow()));
             String gameid = new String(res.getValue(Bytes.toBytes("Game"), Bytes.toBytes("gameid")));
             String winnerid = new String(res.getValue(Bytes.toBytes("Winner"), Bytes.toBytes("winnerid")));
             String looserid = new String(res.getValue(Bytes.toBytes("Loser"), Bytes.toBytes("loserid")));
@@ -333,7 +333,7 @@ public class HBaseScrabble {
                 System.exit(-1);
             }
             List<String> playerNames =hBaseScrabble.query2(args[2], args[3]);
-            System.out.println("There are "+playerNames.size()+" players that participates in more than one tourney between tourneyid "+args[2]+" and tourneyid "+args[3]+" .");
+            System.out.println("There are "+playerNames.size()+" players that participate twice in all tourneys between tourneyid "+args[2]+" and tourneyid "+args[3]+" .");
             System.out.println("The list of players is: "+Arrays.toString(playerNames.toArray(new String[playerNames.size()])));
         }
         else if(args[1].toUpperCase().equals("QUERY3")){
