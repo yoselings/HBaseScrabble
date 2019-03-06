@@ -1,24 +1,25 @@
-# Running hbase with docker
+# Run hbase with docker
+
+1. Download docker image and run the distributed version
 
     git clone https://github.com/big-data-europe/docker-hbase
     docker-compose -f docker-compose-distributed-local.yml up
 
-add hosts mapping:
+2. Add hosts mapping in hosts file
 
     127.0.0.1 hbase-master hbase-region localhost
 
-add ports mapping in docker compose file for master
+3. Add ports mapping in docker compose file for master node
 
     16000:16000
-
-add ports mapping in docker compose file for master
-
     16020:16020
 
-Master at http://localhost:16010/master-status
-Zookeeper at 2181
+4. Chec if hbase is running
 
-# Running app
+Master at http://localhost:16010/master-status
+Zookeeper avaialble at port 2181
+
+# Run HBaseScrabble app
 
     .\bin\HBaseScrabble localhost:2181 createTable
     .\bin\HBaseScrabble localhost:2181 loadTable C:\Users\Filip\Desktop\HBaseProjectScrabble\HBaseProject\CSVS
@@ -26,7 +27,7 @@ Zookeeper at 2181
     .\bin\HBaseScrabble localhost:2181 query2 100 150
     .\bin\HBaseScrabble localhost:2181 query3 235
 
-# hbase shell
+# Use hbase shell
 
     docker container exec -it hbase-master hbase shell
     count 'ScrabbleGames', INTERVAL=>100000, CACHE=>1000
