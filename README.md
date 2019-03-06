@@ -2,17 +2,25 @@
 
 1. Download docker image and run the distributed version
 
+
+    ```
     git clone https://github.com/big-data-europe/docker-hbase
     docker-compose -f docker-compose-distributed-local.yml up
+    ```
+
 
 2. Add hosts mapping in hosts file
 
+    ```
     127.0.0.1 hbase-master hbase-region localhost
+    ```
 
 3. Add ports mapping in docker compose file for master node
 
+    ```
     16000:16000
     16020:16020
+    ```
 
 4. Chec if hbase is running
 
